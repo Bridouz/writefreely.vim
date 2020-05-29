@@ -16,20 +16,24 @@ v = vim
 rq = requests 
 
 # Constants
-useragent = "write.as-vim v 1.0.0"
+useragent = "writefreely-vim v 1.0.0"
 
 #Define Variables
 try:
-    user = vim.eval("g:writeas_u")
+    instance = vim.eval("g:writefreely_i")
 except:
     pass
 try:
-    pword = vim.eval("g:writeas_p")
+    user = vim.eval("g:writefreely_u")
 except:
     pass
-blog = vim.eval("g:writeas_b")
 try:
-    token = vim.eval("g:writeas_t")
+    pword = vim.eval("g:writefreely_p")
+except:
+    pass
+blog = vim.eval("g:writefreely_b")
+try:
+    token = vim.eval("g:writefreely_t")
 except:
     pass
 
@@ -40,8 +44,8 @@ def _authenticate(outputToken):
         user
         username = user
     except NameError:
-        vim.command("let g:writeas_u = input('Username: ')")
-        username = vim.eval('g:writeas_u')
+        vim.command("let g:writefreely_u = input('Username: ')")
+        username = vim.eval('g:writefreely_u')
         vim.command("echo '\r'")
 
     # Prompt for password if necessary
@@ -50,12 +54,12 @@ def _authenticate(outputToken):
         password = pword
         print("Authenticating...")
     except NameError:
-        vim.command("let g:writeas_p = inputsecret('Password: ')")
-        password = vim.eval('g:writeas_p')
+        vim.command("let g:writefreely_p = inputsecret('Password: ')")
+        password = vim.eval('g:writefreely_p')
         print('...')
 
     # Authenticate User
-    url = "https://write.as/api/auth/login"
+    url = instance.join("/api/auth/login")
     payload = {"alias": username, "pass": password}
     head = {'User-Agent': useragent}
     auth = rq.post(url, json=payload, headers=head)  # Authentication request
@@ -67,34 +71,11 @@ def _authenticate(outputToken):
         token = response['data']['access_token']
         if outputToken:
             print("Success. Add to .vimrc:")
-            print("let g:writeas_t = '{}'".format(token))
+            print("let g:writefreely_t = '{}'".format(token))
         else:
             print("Authenticated.")
 
     return token
-
-def _anonpost(title):
-
-    global token
-    try:
-        token
-    except NameError:
-        token = _authenticate(False)
-
-    # Post!!!
-
-    url = "https://write.as/api/posts"
-    head = {"Authorization": "Token {}".format(token), "Content-Type": "application/json", "User-Agent": useragent}
-    post = "\n".join(v.current.buffer)
-    payload = {"body": post, "title": title}
-    response = rq.post(url, json=payload, headers=head)
-    output = response.json()
-    if output['code'] != 201:
-        print ("Error: {}".format(output['error_msg']))
-    else:
-        print ("Post Uploaded")
-        v.current.buffer.append("write.as/{} \n".format(output['data']['id']))
-        v.current.buffer.append("posted: {} \n".format(output['data']['created'])) 
 
 def _blogpost(title):
     
@@ -106,7 +87,7 @@ def _blogpost(title):
 
     # Post!!!
 
-    url = "https://write.as/api/collections/{}/posts".format(blog)
+    url = instance.format(blog)
     head = {"Authorization": "Token {}".format(token), "Content-Type": "application/json", "User-Agent": useragent}
     post = "\n".join(v.current.buffer)
     payload = {"body": post, "title": title} 
@@ -116,16 +97,14 @@ def _blogpost(title):
         print ("Error: {}".format(output['error_msg']))
     else:
         print ("Post Uploaded")
-        v.current.buffer.append("write.as/{}/{} \n".format(blog, output['data']['slug']))
+        v.current.buffer.append(instance.join("/{}/{} \n").format(blog, output['data']['slug']))
         v.current.buffer.append("posted: {} \n".format(output['data']['created']))
 EOF
 
 if has('python')
-        command! -nargs=1 AnonPost :python _anonpost(<f-args>)
         command! -nargs=1 BlogPost :python _blogpost(<f-args>)
         command! -nargs=0 WriteAsAuth :python _authenticate(True)
 elseif has('python3')
-        command! -nargs=1 AnonPost :python3 _anonpost(<f-args>)
         command! -nargs=1 BlogPost :python3 _blogpost(<f-args>)
         command! -nargs=0 WriteAsAuth :python3 _authenticate(True)
 endif
